@@ -88,6 +88,13 @@ class CardCollection:
         piles = [CardCollection(cards=p) for p in piles]
         return piles
 
+    @staticmethod
+    def merge_collections(c_list):
+        new_cards = []
+        for c in c_list:
+            new_cards.extend(c.cards)
+        return CardCollection(new_cards)
+
     def __repr__(self):
         return str([str(card) for card in self.cards])
 
