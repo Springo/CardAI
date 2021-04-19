@@ -56,6 +56,9 @@ class CardCollection:
     def __str__(self):
         return str([str(c) for c in self.cards])
 
+    def num_cards(self):
+        return len(self.cards)
+
     def shuffle(self):
         random.shuffle(self.cards)
 
@@ -76,6 +79,17 @@ class CardCollection:
             self.cards.remove(card)
             return True
         return False
+
+    def deal(self, num_piles):
+        piles = [[] for _ in range(num_piles)]
+        for i in range(len(self.cards)):
+            piles[i % num_piles].append(self.cards[i])
+
+        piles = [CardCollection(cards=p) for p in piles]
+        return piles
+
+    def __repr__(self):
+        return str([str(card) for card in self.cards])
 
 
 class Deck(CardCollection):
