@@ -3,6 +3,8 @@ import random
 
 allowed_ranks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 allowed_suits = ['C', 'D', 'H', 'S']
+rank_strings = {'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+                'T': 10, 'J': 11, 'Q': 12, 'K': 13}
 
 
 class Card:
@@ -32,6 +34,24 @@ class Card:
         else:
             raise Exception("Mode \"{}\" for parsing cards does not exist.".format(mode))
 
+    @staticmethod
+    def str_to_card(card_str, mode="default"):
+        if mode == "default":
+            if len(card_str) != 2:
+                raise UnrecognizedCardException("Card strings should be formatted with a rank letter followed by"
+                                                " a suit letter.")
+
+            rank = card_str[0]
+            suit = card_str[1]
+            if rank not in rank_strings:
+                raise UnrecognizedCardException("{} is an unrecognized rank character".format(rank))
+            if suit not in allowed_suits:
+                raise UnrecognizedCardException("{} is an unrecognized suit character".format(suit))
+
+            return Card(rank_strings[rank], suit)
+        else:
+            raise Exception("Mode \"{}\" for parsing cards does not exist.".format(mode))
+
     def __str__(self):
         return self.parse_card(mode="default")
 
@@ -43,6 +63,10 @@ class Card:
 
     def __hash__(self):
         return hash(str(self))
+
+
+class UnrecognizedCardException(Exception):
+    pass
 
 
 class CardCollection:

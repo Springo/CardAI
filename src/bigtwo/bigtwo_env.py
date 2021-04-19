@@ -419,21 +419,3 @@ class BigTwoState:
                     if compare_plays(play, self.last_play) == 1:
                         valid_plays.append(play)
                 return valid_plays
-
-
-if __name__ == "__main__":
-    new_env = BigTwoEnv(num_players=4)
-    state = new_env.reset()
-    done = False
-    while not done:
-        print("\nPlayer {}'s turn to play {}.".format(state.turn, state.mode))
-        if state.pass_only[state.turn]:
-            print("Since this player passed last turn, they can only pass until a new round begins.")
-        print("Current cards: {}".format(state.hand))
-        poss_moves = state.get_valid_moves()
-        action = random.choice(poss_moves)
-        print("Trying to play action {}".format(action))
-        state, reward = new_env.step(action)
-        done = state.done
-        print("Played action {} and obtained reward {}.".format(action, reward))
-        input("Press enter to continue...")
