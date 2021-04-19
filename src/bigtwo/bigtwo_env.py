@@ -239,6 +239,7 @@ class BigTwoEnv:
         self.player_cards = None
         self.history = None
         self.last_play = None
+        self.pass_only = None
         self.player_card_count = None
         self.turn = None
         self.mode = None
@@ -252,6 +253,7 @@ class BigTwoEnv:
         self.player_card_count = [pc.num_cards() for pc in self.player_cards]
         self.history = [CardCollection()]
         self.last_play = None
+        self.pass_only = [False] * self.num_players
         self.mode = "any"
         self.start = True
         self.done = False
@@ -264,7 +266,7 @@ class BigTwoEnv:
 
     def get_state(self):
         return BigTwoState(self.turn, self.player_cards[self.turn], self.player_card_count, self.history,
-                           self.last_play, self.mode, self.start, self.done)
+                           self.last_play, self.pass_only, self.mode, self.start, self.done)
 
     def is_valid(self, action):
         play, play_rep = identify_play(action)
@@ -285,6 +287,8 @@ class BigTwoEnv:
 
         if play == "pass":
             return True
+        elif self.pass_only[self.turn]:
+            return False
 
         if self.mode == play:
             return compare_plays(action, self.last_play) == 1
@@ -321,13 +325,16 @@ class BigTwoEnv:
         if play == "bomb" or play == "straightflush":
             self.mode = "fivecard"
 
-        if play == "pass" and len(self.history) >= (self.num_players - 2):
-            all_pass = True
-            for past_play in self.history[-(self.num_players - 2):]:
-                if past_play.num_cards() != 0:
-                    all_pass = False
-            if all_pass:
-                self.mode = "any"
+        if play == "pass":
+            self.pass_only[self.turn] = True
+            if len(self.history) >= (self.num_players - 2):
+                all_pass = True
+                for past_play in self.history[-(self.num_players - 2):]:
+                    if past_play.num_cards() != 0:
+                        all_pass = False
+                if all_pass:
+                    self.pass_only = [False] * self.num_players
+                    self.mode = "any"
 
         reward = action.num_cards() / 5.0
 
@@ -356,12 +363,13 @@ class BigTwoEnv:
 
 
 class BigTwoState:
-    def __init__(self, turn, hand, player_card_count, history, last_play, mode, start, done):
+    def __init__(self, turn, hand, player_card_count, history, last_play, pass_only, mode, start, done):
         self.turn = turn
         self.hand = hand
         self.player_card_count = player_card_count
         self.history = history
         self.last_play = last_play
+        self.pass_only = pass_only
         self.mode = mode
         self.start = start
         self.done = done
@@ -369,6 +377,8 @@ class BigTwoState:
     def get_valid_moves(self):
         if self.done:
             return []
+        if self.pass_only[self.turn]:
+            return [CardCollection()]
 
         possible_plays = []
         if self.mode == "any" or self.mode == "single":
@@ -417,6 +427,8 @@ if __name__ == "__main__":
     done = False
     while not done:
         print("\nPlayer {}'s turn to play {}.".format(state.turn, state.mode))
+        if state.pass_only[state.turn]:
+            print("Since this player passed last turn, they can only pass until a new round begins.")
         print("Current cards: {}".format(state.hand))
         poss_moves = state.get_valid_moves()
         action = random.choice(poss_moves)
