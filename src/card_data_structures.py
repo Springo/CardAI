@@ -88,6 +88,17 @@ class CardCollection:
         piles = [CardCollection(cards=p) for p in piles]
         return piles
 
+    def subtract(self, other_col):
+        new_cards = []
+        new_card_set = set()
+        for card in self.cards:
+            if not other_col.contains(card):
+                new_cards.append(card)
+                new_card_set.add(card)
+        self.cards = new_cards
+        self.card_set = new_card_set
+
+
     @staticmethod
     def merge_collections(c_list):
         new_cards = []

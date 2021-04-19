@@ -1,3 +1,4 @@
+import random
 from itertools import combinations
 
 from src.card_data_structures import Card, CardCollection, Deck
@@ -50,15 +51,26 @@ def identify_play(cards):
     elif n == 5:
         straight = False
         flush = False
+        rep_straight = cards.cards[4]
         if (ranks[0] == ranks[1] - 1 and ranks[1] == ranks[2] - 1
                 and ranks[2] == ranks[3] - 1 and ranks[3] == ranks[4] - 1):
             straight = True
+        if ranks[3] == 1 and ranks[4] == 2 and ranks[0] == 11 and ranks[1] == 12 and ranks[2] == 13:
+            straight = True
+        if ranks[4] == 1 and ranks[0] == 10 and ranks[1] == 11 and ranks[2] == 12 and ranks[3] == 13:
+            straight = True
+        if ranks[3] == 1 and ranks[4] == 2 and ranks[0] == 3 and ranks[1] == 4 and ranks[2] == 5:
+            straight = True
+            rep_straight = cards.cards[2]
+        if ranks[4] == 2 and ranks[0] == 3 and ranks[1] == 4 and ranks[2] == 5 and ranks[3] == 6:
+            straight = True
+            rep_straight = cards.cards[3]
         if suits[0] == suits[4]:
             flush = True
         if straight and flush:
-            return "straightflush", cards.cards[4]
+            return "straightflush", rep_straight
         if straight:
-            return "straight", cards.cards[4]
+            return "straight", rep_straight
         if flush:
             return "flush", cards.cards[4]
 
@@ -78,14 +90,24 @@ def identify_play(cards):
 def compare_plays(h1, h2):
     p1, p1_rep = identify_play(h1)
     p2, p2_rep = identify_play(h2)
-    if p1 == "unknown" or p2 == "unknown":
-        raise InvalidComparisonException("At least one of the plays could not be identified.")
+    if p1 == "unknown":
+        raise InvalidComparisonException("Play {} could not be identified.".format(h1))
+    if p2 == "unknown":
+        raise InvalidComparisonException("Play {} could not be identified.".format(h2))
+
+    if p1 != p2 and p1 not in hand_vals and p2 not in hand_vals:
+        print("Trying to compare {} with {}".format(p1, p2))
 
     if p1 == p2:
+        if p1 == "straightflush" and p2 == "straightflush":
+            if suit_vals[p1_rep] > suit_vals[p2_rep]:
+                return 1
+            elif suit_vals[p1_rep] < suit_vals[p2_rep]:
+                return -1
         return compare_cards(p1_rep, p2_rep)
-    elif hand_vals[p1] > hand_vals[p2]:
+    elif p2 not in hand_vals or hand_vals[p1] > hand_vals[p2]:
         return 1
-    elif hand_vals[p1] < hand_vals[p2]:
+    elif p1 not in hand_vals or hand_vals[p1] < hand_vals[p2]:
         return -1
     else:
         raise InvalidComparisonException("Comparison failed all checks.")
@@ -216,9 +238,12 @@ class BigTwoEnv:
         self.num_players = num_players
         self.player_cards = None
         self.history = None
+        self.last_play = None
         self.player_card_count = None
         self.turn = None
         self.mode = None
+        self.start = False
+        self.done = True
 
     def reset(self):
         deck = Deck()
@@ -226,8 +251,10 @@ class BigTwoEnv:
         self.player_cards = [sort_cards(hand) for hand in deck.deal(self.num_players)]
         self.player_card_count = [pc.num_cards() for pc in self.player_cards]
         self.history = [CardCollection()]
+        self.last_play = None
         self.mode = "any"
         self.start = True
+        self.done = False
 
         for i in range(len(self.player_cards)):
             if self.player_cards[i].contains(Card(3, 'C')):
@@ -236,27 +263,112 @@ class BigTwoEnv:
         return self.get_state()
 
     def get_state(self):
-        return BigTwoState(self.turn, self.player_cards[self.turn], self.player_card_count, self.history, self.mode,
-                           self.start)
+        return BigTwoState(self.turn, self.player_cards[self.turn], self.player_card_count, self.history,
+                           self.last_play, self.mode, self.start, self.done)
+
+    def is_valid(self, action):
+        play, play_rep = identify_play(action)
+        if play == "unknown":
+            return False
+
+        for card in action.cards:
+            if not self.player_cards[self.turn].contains(card):
+                return False
+
+        if self.mode == "any":
+            if play == "pass":
+                return False
+            if self.start:
+                return action.contains(Card(3, 'C'))
+            else:
+                return True
+
+        if play == "pass":
+            return True
+
+        if self.mode == play:
+            return compare_plays(action, self.last_play) == 1
+
+        if play == "straightflush" or play == "bomb":
+            return compare_plays(action, self.last_play) == 1
+
+        if play in hand_vals and self.mode == "fivecard":
+            return compare_plays(action, self.last_play) == 1
+
+        return False
+
+    def step(self, action):
+        valid = self.is_valid(action)
+        if not valid:
+            if self.start:
+                action = CardCollection([Card(3, 'C')])
+                print("Warning: invalid play was submitted, playing 3C single...")
+            elif self.mode == "any":
+                chosen_card = self.player_cards[self.turn].cards[0]
+                action = CardCollection([chosen_card])
+                print("Warning: invalid play was submitted, playing {} single...".format(chosen_card))
+            else:
+                action = CardCollection()
+                print("Warning: invalid play was submitted, passing turn...")
+
+        play, play_rep = identify_play(action)
+        if self.mode == "any":
+            if play == "single" or play == "double" or play == "triple" or play == "quad":
+                self.mode = play
+            else:
+                self.mode = "fivecard"
+
+        if play == "bomb" or play == "straightflush":
+            self.mode = "fivecard"
+
+        if play == "pass" and len(self.history) >= (self.num_players - 2):
+            all_pass = True
+            for past_play in self.history[-(self.num_players - 2):]:
+                if past_play.num_cards() != 0:
+                    all_pass = False
+            if all_pass:
+                self.mode = "any"
+
+        reward = action.num_cards() / 5.0
+
+        self.player_cards[self.turn].subtract(action)
+        self.player_card_count[self.turn] -= action.num_cards()
+        self.history.append(action)
+        if play != "pass":
+            self.last_play = action
+        self.start = False
+
+        nonzero = 0
+        for count in self.player_card_count:
+            if count > 0:
+                nonzero += 1
+        if self.player_card_count[self.turn] == 0 and play != "pass":
+            reward += 2.0 * nonzero
+        if nonzero <= 1:
+            self.done = True
+
+        self.turn = (self.turn + 1) % self.num_players
+
+        while self.mode == "any" and self.player_card_count[self.turn] == 0:
+            self.turn = (self.turn - 1) % self.num_players
+
+        return self.get_state(), reward
 
 
 class BigTwoState:
-    def __init__(self, turn, hand, player_card_count, history, mode, start):
+    def __init__(self, turn, hand, player_card_count, history, last_play, mode, start, done):
         self.turn = turn
         self.hand = hand
         self.player_card_count = player_card_count
         self.history = history
+        self.last_play = last_play
         self.mode = mode
         self.start = start
+        self.done = done
 
     def get_valid_moves(self):
-        last_play = None
-        if self.mode != "any":
-            i = 1
-            while last_play is None:
-                if self.history[-i].num_cards > 0:
-                    last_play = self.history[-i]
-                i += 1
+        if self.done:
+            return []
 
         possible_plays = []
         if self.mode == "any" or self.mode == "single":
@@ -292,8 +404,9 @@ class BigTwoState:
             if self.mode == "any":
                 return possible_plays
             else:
+                valid_plays.append(CardCollection())
                 for play in possible_plays:
-                    if compare_plays(play, last_play) == 1:
+                    if compare_plays(play, self.last_play) == 1:
                         valid_plays.append(play)
                 return valid_plays
 
@@ -301,11 +414,14 @@ class BigTwoState:
 if __name__ == "__main__":
     new_env = BigTwoEnv(num_players=4)
     state = new_env.reset()
-    print(state.hand)
-    moves = state.get_valid_moves()
-    for move in moves:
-        print(move)
-    cards = [Card(9, 'S'), Card(10, 'S'), Card(8, 'S'), Card(11, 'S'), Card(5, 'S')]
-    hand = CardCollection(cards)
-    play, rep_card = identify_play(hand)
-    print("{}, {}".format(play, rep_card))
+    done = False
+    while not done:
+        print("\nPlayer {}'s turn to play {}.".format(state.turn, state.mode))
+        print("Current cards: {}".format(state.hand))
+        poss_moves = state.get_valid_moves()
+        action = random.choice(poss_moves)
+        print("Trying to play action {}".format(action))
+        state, reward = new_env.step(action)
+        done = state.done
+        print("Played action {} and obtained reward {}.".format(action, reward))
+        input("Press enter to continue...")
