@@ -1,6 +1,7 @@
 import numpy as np
 
 from src.card_data_structures import Card, UnrecognizedCardException, CardCollection
+from src.bigtwo.bigtwo_env import compare_cards, get_smallest_card, compare_plays, get_hand_value
 
 
 class Agent:
@@ -51,3 +52,36 @@ class HumanAgent(Agent):
                 except UnrecognizedCardException:
                     print("That command is invalid. Please try again.")
         return CardCollection(cards_to_play)
+
+
+class GreedyAgent(Agent):
+    def get_action(self, state):
+        poss_moves = state.get_valid_moves()
+        if len(poss_moves) == 1:
+            return poss_moves[0]
+
+        min_card = None
+        filtered_poss_moves = []
+        for move in poss_moves:
+            if move.num_cards() != 0:
+                move_min_card = get_smallest_card(move)
+                if min_card is None or compare_cards(min_card, move_min_card) == 1:
+                    min_card = move_min_card
+                    filtered_poss_moves = []
+                if move_min_card == min_card:
+                    filtered_poss_moves.append(move)
+
+        candidate = None
+        for move in filtered_poss_moves:
+            if candidate is None:
+                candidate = move
+            if state.mode == "any" or state.mode == "fivecard":
+                if candidate.num_cards() < move.num_cards():
+                    candidate = move
+                elif candidate.num_cards() == move.num_cards() and get_hand_value(candidate) > get_hand_value(move):
+                    candidate = move
+            else:
+                if get_hand_value(candidate) > get_hand_value(move):
+                    candidate = move
+
+        return candidate

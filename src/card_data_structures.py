@@ -1,4 +1,5 @@
 import random
+from copy import deepcopy
 
 
 allowed_ranks = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
@@ -74,7 +75,7 @@ class CardCollection:
         if cards is None:
             self.cards = []
         else:
-            self.cards = cards
+            self.cards = deepcopy(cards)
         self.card_set = set(self.cards)
 
     def __str__(self):
@@ -121,7 +122,6 @@ class CardCollection:
                 new_card_set.add(card)
         self.cards = new_cards
         self.card_set = new_card_set
-
 
     @staticmethod
     def merge_collections(c_list):

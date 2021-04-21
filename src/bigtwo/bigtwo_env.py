@@ -8,7 +8,14 @@ hand_vals = {'straight': 0, 'flush': 1, 'fullhouse': 2, 'bomb': 3, 'straightflus
 
 
 def get_card_value(card):
-    return ((card.rank - 3) % 13) * 10 + suit_vals[card.suit]
+    return ((card.rank - 3) % 13) * 100 + suit_vals[card.suit]
+
+
+def get_hand_value(hand):
+    total = 0
+    for card in hand.cards:
+        total += get_card_value(card)
+    return total
 
 
 def compare_cards(c1, c2):
@@ -23,6 +30,10 @@ def compare_cards(c1, c2):
 
 def get_largest_card(cards):
     return max(cards.cards, key=get_card_value)
+
+
+def get_smallest_card(cards):
+    return min(cards.cards, key=get_card_value)
 
 
 def sort_cards(cards):
@@ -99,10 +110,10 @@ def compare_plays(h1, h2):
         print("Trying to compare {} with {}".format(p1, p2))
 
     if p1 == p2:
-        if p1 == "straightflush" and p2 == "straightflush":
-            if suit_vals[p1_rep] > suit_vals[p2_rep]:
+        if p1 == "flush" or p1 == "straightflush":
+            if suit_vals[p1_rep.suit] > suit_vals[p2_rep.suit]:
                 return 1
-            elif suit_vals[p1_rep] < suit_vals[p2_rep]:
+            elif suit_vals[p1_rep.suit] < suit_vals[p2_rep.suit]:
                 return -1
         return compare_cards(p1_rep, p2_rep)
     elif p2 not in hand_vals or hand_vals[p1] > hand_vals[p2]:

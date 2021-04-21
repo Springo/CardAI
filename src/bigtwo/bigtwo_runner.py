@@ -1,6 +1,6 @@
 from src.card_data_structures import CardCollection
 from src.bigtwo.bigtwo_env import BigTwoEnv
-from src.bigtwo.bigtwo_agents import RandomAgent, HumanAgent
+from src.bigtwo.bigtwo_agents import RandomAgent, HumanAgent, GreedyAgent
 
 
 def run(players, verbose=False):
@@ -12,8 +12,10 @@ def run(players, verbose=False):
     done = False
     while not done:
         cur_turn = state.turn
+        must_pass = False
 
         if state.pass_only[cur_turn] or state.player_card_count[cur_turn] == 0:
+            must_pass = True
             if verbose:
                 print("\nPlayer {} must pass.".format(cur_turn + 1))
             action = CardCollection()
@@ -24,10 +26,14 @@ def run(players, verbose=False):
 
         state, reward = new_env.step(action)
         done = state.done
-        if verbose:
-            print("Played action {} and obtained reward {}.".format(action, reward))
-        else:
-            print("Player {} played {}.".format(cur_turn + 1, action))
+        if not must_pass:
+            if verbose:
+                print("Played action {} and obtained reward {}.".format(action, reward))
+            else:
+                if action.num_cards() > 0:
+                    print("Player {} played {}.".format(cur_turn + 1, action))
+                else:
+                    print("Player {} passed.".format(cur_turn + 1))
 
         if state.player_card_count[cur_turn] == 0 and action.num_cards() > 0:
             if num_finished == 0:
@@ -38,10 +44,11 @@ def run(players, verbose=False):
                 print("Player {} finished in 3rd place!".format(cur_turn + 1))
                 for i in range(len(players)):
                     if state.player_card_count[i] > 0:
-                        print("Player {} lost!".format(i + 1))
+                        print("Player {} lost and had the remaining cards: {}".format(
+                            i + 1, new_env.player_cards[i]))
             num_finished += 1
 
 
 if __name__ == "__main__":
-    players = [HumanAgent(), RandomAgent(), RandomAgent(), RandomAgent()]
+    players = [GreedyAgent(), RandomAgent(), RandomAgent(), RandomAgent()]
     run(players, verbose=False)
