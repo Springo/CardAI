@@ -5,7 +5,8 @@ from src.bigtwo.bigtwo_env import compare_cards, get_smallest_card, compare_play
 
 
 class Agent:
-    def __init__(self, seed=None):
+    def __init__(self, name=None, seed=None):
+        self.name = name
         self.seed = seed
         if seed is None:
             self.rand_state = np.random.RandomState()
@@ -29,8 +30,8 @@ class RandomAgent(Agent):
 
 
 class HumanAgent(Agent):
-    def __init__(self, seed=None):
-        super().__init__(seed)
+    def __init__(self, name=None, seed=None):
+        super().__init__(name, seed)
 
         self.allowed_ranks = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
         self.allowed_suits = {'C', 'D', 'H', 'S'}
